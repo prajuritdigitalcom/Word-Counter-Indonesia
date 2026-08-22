@@ -9,7 +9,7 @@
     "preview": "vite preview",
     "clean": "rm -rf dist server.js",
     "lint": "tsc --noEmit",
-    "test": "tsx src/lib/textAnalyzer.test.ts"
+    "test": "tsx src/lib/textAnalyzer.test.ts && tsx src/lib/humanizer/humanizer.test.ts"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",

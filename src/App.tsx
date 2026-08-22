@@ -8,7 +8,11 @@ import { TextAnalysis } from './components/TextAnalysis';
 import { SeoCheckSection } from './components/SeoCheckSection';
 import { Footer } from './components/Footer';
 import { Toast, ToastMessage } from './components/Toast';
+import { HumanizerModal } from './components/HumanizerModal';
+import { HumanizerResultSection } from './components/HumanizerResultSection';
 import { useTextStatistics } from './hooks/useTextStatistics';
+import { useHumanizer } from './hooks/useHumanizer';
+import { MIN_HUMANIZER_WORD_COUNT } from './lib/humanizer/config';
 import { ChevronDown, ChevronUp, SlidersHorizontal } from 'lucide-react';
 
 export default function App() {
@@ -23,6 +27,28 @@ export default function App() {
     clearText,
     getFormattedSummaryForCopy,
   } = useTextStatistics();
+
+  const {
+    keyState,
+    isModalOpen,
+    setIsModalOpen,
+    isVerifying,
+    verificationError,
+    verifyAndSaveKey,
+    removeKey,
+    mode,
+    setMode,
+    isProcessing,
+    currentStepMessage,
+    processingError,
+    result,
+    canUndoInput,
+    runHumanizer,
+    runSecondPass,
+    handleUseAsInput,
+    handleUndoInput,
+    clearResult,
+  } = useHumanizer();
 
   const [toast, setToast] = useState<ToastMessage | null>(null);
   const [showAdvanced, setShowAdvanced] = useState<boolean>(false);
@@ -42,7 +68,6 @@ export default function App() {
         await navigator.clipboard.writeText(summary);
         showToast('Statistik berhasil disalin.', 'success');
       } else {
-        // Fallback for non-supported browsers or non-secure contexts
         const textArea = document.createElement('textarea');
         textArea.value = summary;
         textArea.style.position = 'fixed';
@@ -63,33 +88,87 @@ export default function App() {
     }
   };
 
+  const handleHeaderRunHumanizer = async () => {
+    if (!keyState.configured) {
+      setIsModalOpen(true);
+      return;
+    }
+
+    const words = text.trim().split(/\s+/).filter(Boolean);
+    if (words.length < MIN_HUMANIZER_WORD_COUNT) {
+      showToast(
+        `Teks membutuhkan minimal ${MIN_HUMANIZER_WORD_COUNT} kata untuk di-humanize (saat ini: ${words.length} kata).`,
+        'info'
+      );
+      return;
+    }
+
+    await runHumanizer(text, keyword);
+  };
+
   return (
     <div className="min-h-screen flex flex-col bg-[#fbfbfc] text-slate-900 selection:bg-[#fe4c6f]/15 selection:text-[#fe4c6f]">
       {/* Toast Notification */}
       <Toast toast={toast} onClose={() => setToast(null)} />
 
-      {/* Header */}
-      <Header />
+      {/* API Key Modal */}
+      <HumanizerModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        keyState={keyState}
+        isVerifying={isVerifying}
+        verificationError={verificationError}
+        onVerifyAndSave={verifyAndSaveKey}
+        onRemoveKey={removeKey}
+      />
+
+      {/* Header with Humanizer Trigger */}
+      <Header
+        keyState={keyState}
+        isProcessing={isProcessing}
+        onOpenModal={() => setIsModalOpen(true)}
+        onRunHumanizer={handleHeaderRunHumanizer}
+      />
 
       {/* Main Content Area: 2-Column Responsive Layout (75% / 25% on desktop) */}
       <main id="beranda" className="flex-1 max-w-6xl w-full mx-auto px-4 sm:px-6 py-6 sm:py-8">
-        <h1 className="sr-only">Word Counter Indonesia - Hitung Kata Online Gratis</h1>
+        <h1 className="sr-only">Word Counter Indonesia - Hitung Kata Online Gratis & Humanizer</h1>
 
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 items-start">
           {/* Kolom Kiri: 75% (~3/4) */}
           <div className="lg:col-span-3 space-y-6">
-            {/* Main Tool: Headline & Textarea */}
+            {/* Main Tool: Headline & Textarea Asli (Input Asli Tetap Utuh) */}
             <section aria-label="Word Counter Editor">
               <TextEditor
                 text={text}
                 setText={setText}
                 setKeyword={setKeyword}
                 statistics={statistics}
-                onClear={clearText}
+                onClear={() => {
+                  clearText();
+                }}
                 onCopyStatistics={handleCopyStatistics}
                 onShowToast={showToast}
               />
             </section>
+
+            {/* Hasil Humanizer Section (Terpisah di Bawah Editor Utama) */}
+            {(result || isProcessing || processingError) && (
+              <HumanizerResultSection
+                result={result}
+                isProcessing={isProcessing}
+                currentStepMessage={currentStepMessage}
+                processingError={processingError}
+                mode={mode}
+                onModeChange={setMode}
+                onSecondPass={() => runSecondPass(keyword)}
+                onUseAsInput={() => handleUseAsInput(text, setText, showToast)}
+                canUndoInput={canUndoInput}
+                onUndoInput={() => handleUndoInput(setText, showToast)}
+                onClearResult={clearResult}
+                onShowToast={showToast}
+              />
+            )}
 
             {/* Collapsible: Analisis Lanjutan & SEO Content Check */}
             <section className="bg-white rounded-xl border border-slate-200 overflow-hidden" aria-label="Analisis Lanjutan">
@@ -129,7 +208,7 @@ export default function App() {
           </div>
 
           {/* Kolom Kanan: 25% (~1/4) - Sidebar Detail Statistik & Keyword Density */}
-          <aside className="lg:col-span-1 lg:sticky lg:top-6 space-y-4" aria-label="Sidebar Informasi">
+          <aside className="lg:col-span-1 lg:sticky lg:top-20 space-y-4" aria-label="Sidebar Informasi">
             <StatisticsGrid
               statistics={statistics}
               screenReaderAnnouncement={screenReaderAnnouncement}
@@ -138,7 +217,7 @@ export default function App() {
             {/* Keyword Density Panel (x1, x2, x3 n-grams) */}
             <KeywordDensity statistics={statistics} />
 
-            {/* Indikator Pola Tulisan AI */}
+            {/* Indikator Pola Tulisan AI (Single Source of Truth) */}
             <AiPatternIndicator text={text} targetKeyword={keyword} />
           </aside>
         </div>
