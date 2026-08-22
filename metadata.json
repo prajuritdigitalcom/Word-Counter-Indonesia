@@ -1,0 +1,7 @@
+{
+  "name": "Word Counter Indonesia",
+  "description": "Aplikasi Word Counter Indonesia gratis untuk menghitung jumlah kata, karakter, kalimat, paragraf, waktu baca, dan keyword density secara realtime dari Prajurit Digital.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
+
