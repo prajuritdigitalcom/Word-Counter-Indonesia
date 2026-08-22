@@ -1,5 +1,5 @@
 /**
- * Punctuation & Formatting Stylometric Feature Extractor (Section 5 & Section 32)
+ * Punctuation & Formatting Stylometric Feature Extractor (v2.1.0)
  * Separates imported em-dash (—) signals from standard Indonesian hyphenation.
  */
 import { PreparedTextContext, AiPatternCategoryResult, AiPatternMatch } from '../types';
@@ -7,9 +7,12 @@ import { PreparedTextContext, AiPatternCategoryResult, AiPatternMatch } from '..
 export function extractPunctuationFeature(ctx: PreparedTextContext): {
   categoryResult: AiPatternCategoryResult;
   score: number;
+  applicable: boolean;
 } {
   const { rawText, wordCount } = ctx;
-  if (wordCount === 0) {
+  const applicable = wordCount >= 20;
+
+  if (!applicable || wordCount === 0) {
     return {
       categoryResult: {
         id: 'punctuation',
@@ -18,15 +21,17 @@ export function extractPunctuationFeature(ctx: PreparedTextContext): {
         contribution: 'Rendah',
         matches: [],
         rawScore: 0,
+        applicable,
       },
       score: 0,
+      applicable,
     };
   }
 
   const factor = 1000 / wordCount;
   const matches: AiPatternMatch[] = [];
 
-  // 1. Em Dash (—) (U+2014) - Imported punctuation style in Indonesian (Section 32)
+  // 1. Em Dash (—) (U+2014) - Imported punctuation style in Indonesian
   const emDashMatches = rawText.match(/\u2014|--/g) || [];
   const emDashDensity = emDashMatches.length * factor; // per 1k words
   if (emDashMatches.length > 0) {
@@ -43,15 +48,8 @@ export function extractPunctuationFeature(ctx: PreparedTextContext): {
   if (headerLines > 0) matches.push({ phrase: 'Header (# / ##)', count: headerLines });
 
   // 3. Semicolons & colons
-  const semicolonMatches = (rawText.match(/;/g) || []).length;
-  const colonMatches = (rawText.match(/:/g) || []).length;
-
-  // Scoring contributions
-  // High em-dash in Indonesian (> 2.5 per 1k words) is a notable stylistic trait of LLMs
-  const emDashScore = emDashDensity > 1.5 ? Math.min((emDashDensity - 1.5) / 4.0, 1) : 0;
-
-  // Markdown formatting density
   const totalFormatting = bulletLines + boldMatches + headerLines;
+  const emDashScore = emDashDensity > 1.5 ? Math.min((emDashDensity - 1.5) / 4.0, 1) : 0;
   const formatDensity = totalFormatting * factor;
   const formatScore = formatDensity > 6.0 ? Math.min((formatDensity - 6.0) / 12.0, 1) : 0;
 
@@ -71,7 +69,9 @@ export function extractPunctuationFeature(ctx: PreparedTextContext): {
       contribution,
       matches,
       rawScore,
+      applicable,
     },
     score: rawScore,
+    applicable,
   };
 }

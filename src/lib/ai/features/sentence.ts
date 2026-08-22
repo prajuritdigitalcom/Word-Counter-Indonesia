@@ -1,5 +1,5 @@
 /**
- * Sentence-Level Stylometric Feature Extractor
+ * Sentence-Level Stylometric Feature Extractor (v2.1.0)
  * Detects overly uniform sentence lengths and repetitive sentence openings.
  */
 import { PreparedTextContext, AiPatternCategoryResult, AiPatternMatch } from '../types';
@@ -7,21 +7,25 @@ import { PreparedTextContext, AiPatternCategoryResult, AiPatternMatch } from '..
 export function extractSentenceFeature(ctx: PreparedTextContext): {
   categoryResult: AiPatternCategoryResult;
   score: number;
+  applicable: boolean;
 } {
   const { sentences, sentenceTokens, wordCount } = ctx;
   const sentenceCount = sentences.length;
+  const applicable = sentenceCount >= 3 && wordCount >= 30;
 
-  if (sentenceCount < 3 || wordCount === 0) {
+  if (!applicable || wordCount === 0) {
     return {
       categoryResult: {
         id: 'sentence',
         name: 'Struktur & Variasi Kalimat',
-        detail: 'Jumlah kalimat belum mencukupi untuk analisis variasi',
+        detail: 'Jumlah kalimat belum mencukupi untuk analisis variasi (butuh minimal 3 kalimat)',
         contribution: 'Rendah',
         matches: [],
         rawScore: 0,
+        applicable,
       },
       score: 0,
+      applicable,
     };
   }
 
@@ -36,8 +40,10 @@ export function extractSentenceFeature(ctx: PreparedTextContext): {
         contribution: 'Rendah',
         matches: [],
         rawScore: 0,
+        applicable,
       },
       score: 0,
+      applicable,
     };
   }
 
@@ -45,7 +51,7 @@ export function extractSentenceFeature(ctx: PreparedTextContext): {
   const variance = lengths.reduce((acc, val) => acc + Math.pow(val - avgLength, 2), 0) / lengths.length;
   const stdDev = Math.sqrt(variance);
 
-  // AI text often has very low sentence standard deviation (< 4.5) with avg length tightly around 14-22 words
+  // AI text often has very low sentence standard deviation (< 4.2) with avg length tightly around 12-24 words
   const isTooUniform = stdDev < 4.2 && avgLength >= 12 && avgLength <= 24;
   const uniformityScore = isTooUniform ? Math.min((4.2 - stdDev) / 3.0, 1) : 0;
 
@@ -85,7 +91,7 @@ export function extractSentenceFeature(ctx: PreparedTextContext): {
   const detail =
     isTooUniform || maxOpeningRepeat >= 3
       ? `Rata-rata ${avgLength.toFixed(1)} kata/kalimat (variasi rendah: ±${stdDev.toFixed(1)} kata), ${repeatedOpenings.length} pola pembuka berulang`
-      : `Rata-rata ${avgLength.toFixed(1)} kata/kalimat (variasi sehat: ±${stdDev.toFixed(1)} kata)`;
+      : `Rata-rata ${avgLength.toFixed(1)} kata/kalimat (variasi dinamis: ±${stdDev.toFixed(1)} kata)`;
 
   return {
     categoryResult: {
@@ -95,7 +101,9 @@ export function extractSentenceFeature(ctx: PreparedTextContext): {
       contribution,
       matches: repeatedOpenings.slice(0, 4),
       rawScore,
+      applicable,
     },
     score: rawScore,
+    applicable,
   };
 }

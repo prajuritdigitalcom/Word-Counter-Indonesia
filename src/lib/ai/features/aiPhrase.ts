@@ -1,5 +1,5 @@
 /**
- * AI Phrase & Specificity Feature Extractor (Section 7 & Section 8)
+ * AI Phrase & Specificity Feature Extractor (v2.1.0)
  * Penalizes/dampens common formal Indonesian phrases while keeping high-confidence AI phrases distinct.
  */
 import {
@@ -25,9 +25,12 @@ const COMMON_FORMAL_REGEXES = createPhraseRegexes(COMMON_FORMAL_PHRASES);
 export function extractAiPhraseFeature(ctx: PreparedTextContext): {
   categoryResult: AiPatternCategoryResult;
   score: number;
+  applicable: boolean;
 } {
   const { rawText, wordCount } = ctx;
-  if (wordCount === 0) {
+  const applicable = wordCount >= 20;
+
+  if (!applicable || wordCount === 0) {
     return {
       categoryResult: {
         id: 'aiSpecificPhrase',
@@ -36,8 +39,10 @@ export function extractAiPhraseFeature(ctx: PreparedTextContext): {
         contribution: 'Rendah',
         matches: [],
         rawScore: 0,
+        applicable,
       },
       score: 0,
+      applicable,
     };
   }
 
@@ -74,7 +79,6 @@ export function extractAiPhraseFeature(ctx: PreparedTextContext): {
   }
 
   // 3. Low Specificity: Common Formal Indonesian Phrases
-  // We count them but apply a heavy dampening factor to prevent false positives on formal human essays
   let formalCount = 0;
   for (const { regex } of COMMON_FORMAL_REGEXES) {
     const m = rawText.match(regex);
@@ -115,7 +119,9 @@ export function extractAiPhraseFeature(ctx: PreparedTextContext): {
       contribution,
       matches: matches.slice(0, 5),
       rawScore,
+      applicable,
     },
     score: rawScore,
+    applicable,
   };
 }

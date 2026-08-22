@@ -1,5 +1,5 @@
 /**
- * Types and interfaces for the Multi-Signal Stylometric AI Pattern Engine (v2.0.0)
+ * Types and interfaces for the Multi-Signal Stylometric AI Pattern Engine (v2.1.0)
  */
 
 export type AiPatternLevel = 'rendah' | 'sedang' | 'tinggi';
@@ -27,6 +27,7 @@ export interface AiPatternCategoryResult {
   contribution: ContributionLevel;
   matches: AiPatternMatch[];
   rawScore: number; // 0..1 scale
+  applicable: boolean; // true if text structurally permits evaluation
 }
 
 export interface AiFeatureScores {
@@ -42,6 +43,19 @@ export interface AiFeatureScores {
   naturalnessPenalty: number; // Subtracted or mitigating factor
 }
 
+export interface AiFeatureApplicable {
+  lexical: boolean;
+  sentence: boolean;
+  paragraph: boolean;
+  repetition: boolean;
+  enumeration: boolean;
+  concreteness: boolean;
+  transition: boolean;
+  punctuation: boolean;
+  aiSpecificPhrase: boolean;
+  naturalnessPenalty: boolean;
+}
+
 export interface AiPatternResult {
   status: 'empty' | 'tooShort' | 'scored';
   engineVersion: string;
@@ -50,7 +64,9 @@ export interface AiPatternResult {
   label: AiPatternLevel | null;
   labelText: string | null;
   confidence: AiPatternLevel | null;
+  confidenceDetail?: string;
   activeCategoriesCount: number;
+  eligibleCategoriesCount?: number;
   categories: AiPatternCategoryResult[];
   featureScores?: AiFeatureScores;
 }

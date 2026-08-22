@@ -1,5 +1,5 @@
 /**
- * Triadic Enumeration ("Rule of Three") Feature Extractor (Section 30)
+ * Triadic Enumeration ("Rule of Three") Feature Extractor (v2.1.0)
  * Detects structural list-of-three/four patterns characteristic of generative LLMs.
  * e.g. "efisiensi, produktivitas, dan kualitas hidup"
  */
@@ -12,9 +12,12 @@ const TRIADIC_ENUMERATION_REGEX =
 export function extractEnumerationFeature(ctx: PreparedTextContext): {
   categoryResult: AiPatternCategoryResult;
   score: number;
+  applicable: boolean;
 } {
   const { rawText, wordCount } = ctx;
-  if (wordCount === 0) {
+  const applicable = wordCount >= 20;
+
+  if (!applicable || wordCount === 0) {
     return {
       categoryResult: {
         id: 'enumeration',
@@ -23,8 +26,10 @@ export function extractEnumerationFeature(ctx: PreparedTextContext): {
         contribution: 'Rendah',
         matches: [],
         rawScore: 0,
+        applicable,
       },
       score: 0,
+      applicable,
     };
   }
 
@@ -42,10 +47,6 @@ export function extractEnumerationFeature(ctx: PreparedTextContext): {
   const count = matches.length;
   const densityPer1k = count * factor;
 
-  // Normalization:
-  // 0–2 per 1k words: normal/natural (low score)
-  // > 2 per 1k words: rising
-  // > 5.5 per 1k words: approaching 1.0
   let rawScore = 0;
   if (densityPer1k > 2.0) {
     rawScore = Math.min((densityPer1k - 2.0) / 4.0, 1);
@@ -65,7 +66,9 @@ export function extractEnumerationFeature(ctx: PreparedTextContext): {
       contribution,
       matches: matches.slice(0, 3),
       rawScore,
+      applicable,
     },
     score: rawScore,
+    applicable,
   };
 }

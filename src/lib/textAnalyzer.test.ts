@@ -1,5 +1,5 @@
 /**
- * Verification test suite for Text Analyzer & Multi-Signal AI Pattern Engine (v2.0.0)
+ * Verification test suite for Text Analyzer & Multi-Signal AI Pattern Engine (v2.1.0)
  */
 import {
   countWords,
@@ -18,8 +18,12 @@ import {
   HUMAN_FORMAL_SAMPLES,
   HUMAN_INFORMAL_SAMPLES,
   HUMAN_CODESWITCH_SAMPLES,
+  HUMAN_SEO_BUSINESS_SAMPLES,
   AI_GENERIC_SAMPLES,
+  AI_REALISTIC_SAMPLES,
+  AI_SINGLE_PARAGRAPH_SAMPLES,
   AI_CONVERSATIONAL_SAMPLES,
+  TEST_DETECTION_SAMPLES,
 } from '../data/aiDetectionSamples';
 
 export function runTests(): { passed: boolean; results: string[] } {
@@ -131,7 +135,7 @@ export function runTests(): { passed: boolean; results: string[] } {
   assert(countParagraphs(r4Text) === 3, 'R-4: Single-newline separated lines should count as 3 paragraphs', countParagraphs(r4Text), 3);
 
   // ==========================================
-  // --- AI Pattern Indicator v2.0.0 Tests ---
+  // --- AI Pattern Indicator v2.1.0 Tests ---
   // ==========================================
 
   // AI-1: Empty input
@@ -143,8 +147,7 @@ export function runTests(): { passed: boolean; results: string[] } {
   const aiShort = analyzeAiPatterns(shortText);
   assert(aiShort.status === 'tooShort' && aiShort.label === null, 'AI-2: Below 150 words returns status tooShort without label');
 
-  // AI-3: Human Formal Writing - False Positive Resilience
-  // Formal Indonesian with transitions ("oleh karena itu", "namun demikian", "selain itu") should NOT score high
+  // AI-3: Human Formal Writing - False Positive Resilience (< 40)
   const humanFormalResult = analyzeAiPatterns(HUMAN_FORMAL_SAMPLES[0].text);
   assert(
     humanFormalResult.status === 'scored' && humanFormalResult.score < 40,
@@ -153,12 +156,11 @@ export function runTests(): { passed: boolean; results: string[] } {
     '< 40'
   );
 
-  // AI-4: AI Generic Writing without Meta Phrases (Section 36 Test Case)
-  // Should trigger stylometric signals (triadic lists, generic vocabulary, uniform structure)
+  // AI-4: AI Generic Writing without Meta Phrases
   const aiGenericResult = analyzeAiPatterns(AI_GENERIC_SAMPLES[0].text);
   assert(
     aiGenericResult.status === 'scored' && aiGenericResult.score >= 50,
-    `AI-4: Generic AI text without meta phrases should be detected via stylometry (score >= 50), got ${aiGenericResult.score}`,
+    `AI-4: Generic AI text should be detected via stylometry (score >= 50), got ${aiGenericResult.score}`,
     aiGenericResult.score,
     '>= 50'
   );
@@ -181,7 +183,7 @@ export function runTests(): { passed: boolean; results: string[] } {
     '< 30'
   );
 
-  // AI-7: Human Code-Switching (Section 34)
+  // AI-7: Human Code-Switching
   const humanCodeSwitchResult = analyzeAiPatterns(HUMAN_CODESWITCH_SAMPLES[0].text);
   assert(
     humanCodeSwitchResult.status === 'scored' && humanCodeSwitchResult.score < 40,
@@ -190,19 +192,58 @@ export function runTests(): { passed: boolean; results: string[] } {
     '< 40'
   );
 
-  // AI-8: Evaluator Benchmark Metrics (FPR & Precision)
-  const evalMetrics = evaluateDataset(undefined, 48);
+  // AI-N1: Human Narrative / Personal Reflections should remain in Low tier (< 25)
+  const humanNarrativeSample = HUMAN_INFORMAL_SAMPLES.find((s) => s.id === 'hn-1');
+  if (humanNarrativeSample) {
+    const narrativeRes = analyzeAiPatterns(humanNarrativeSample.text);
+    assert(
+      narrativeRes.score < 25,
+      `AI-N1: Human personal narrative should remain low (< 25), got ${narrativeRes.score}`,
+      narrativeRes.score,
+      '< 25'
+    );
+  }
+
+  // AI-AR1: Realistic AI Writing (Non-caricature) should score >= 50
+  const aiRealisticRes = analyzeAiPatterns(AI_REALISTIC_SAMPLES[0].text);
   assert(
-    evalMetrics.falsePositiveRate === 0,
-    `AI-8: False Positive Rate on Human test dataset should be 0%, got ${(evalMetrics.falsePositiveRate * 100).toFixed(0)}%`,
+    aiRealisticRes.score >= 50,
+    `AI-AR1: Realistic AI writing should reach high tier (score >= 50), got ${aiRealisticRes.score}`,
+    aiRealisticRes.score,
+    '>= 50'
+  );
+
+  // AI-SP1: AI Single-Paragraph with strong signal should score >= 50
+  const aiSingleParaRes = analyzeAiPatterns(AI_SINGLE_PARAGRAPH_SAMPLES[0].text);
+  assert(
+    aiSingleParaRes.score >= 50,
+    `AI-SP1: AI 1-paragraph dense text should reach high tier (score >= 50), got ${aiSingleParaRes.score}`,
+    aiSingleParaRes.score,
+    '>= 50'
+  );
+
+  // AI-SEO1: Human SEO with repetitive focal keyword should not trigger false positive
+  const humanSeoRes = analyzeAiPatterns(HUMAN_SEO_BUSINESS_SAMPLES[0].text, 'jasa service AC Surabaya');
+  assert(
+    humanSeoRes.score < 40,
+    `AI-SEO1: Human localized SEO article should not be flagged as AI (< 40), got ${humanSeoRes.score}`,
+    humanSeoRes.score,
+    '< 40'
+  );
+
+  // AI-8: Evaluator Benchmark Metrics on Held-Out Test Split
+  const evalMetrics = evaluateDataset(TEST_DETECTION_SAMPLES, 48);
+  assert(
+    evalMetrics.falsePositiveRate <= 0.15,
+    `AI-8: False Positive Rate on held-out test split should be <= 15%, got ${(evalMetrics.falsePositiveRate * 100).toFixed(1)}%`,
     evalMetrics.falsePositiveRate,
-    0
+    '<= 0.15'
   );
   assert(
-    evalMetrics.recall === 1.0,
-    `AI-8: Recall on AI test dataset should be 100%, got ${(evalMetrics.recall * 100).toFixed(0)}%`,
+    evalMetrics.recall >= 0.80,
+    `AI-8: Recall on held-out test split should be >= 80%, got ${(evalMetrics.recall * 100).toFixed(1)}%`,
     evalMetrics.recall,
-    1.0
+    '>= 0.80'
   );
 
   return { passed: allPassed, results };

@@ -139,7 +139,7 @@ export default function App() {
             <KeywordDensity statistics={statistics} />
 
             {/* Indikator Pola Tulisan AI */}
-            <AiPatternIndicator text={text} onShowToast={showToast} />
+            <AiPatternIndicator text={text} targetKeyword={keyword} />
           </aside>
         </div>
       </main>

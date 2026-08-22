@@ -1,10 +1,16 @@
 /**
- * AI Writing Pattern Master Analyzer (v2.0.0)
+ * AI Writing Pattern Master Analyzer (v2.1.0)
  * Multi-Signal Stylometric Heuristic Engine for Indonesian text.
  */
 import { MIN_WORDS_FOR_SCORING, ENGINE_VERSION } from '../../data/aiPatterns';
 import { countWords } from '../textAnalyzer';
-import { PreparedTextContext, AiPatternResult, AiPatternCategoryResult, AiFeatureScores } from './types';
+import {
+  PreparedTextContext,
+  AiPatternResult,
+  AiPatternCategoryResult,
+  AiFeatureScores,
+  AiFeatureApplicable,
+} from './types';
 
 // Feature extractors
 import { extractLexicalFeature } from './features/lexical';
@@ -20,7 +26,7 @@ import { extractNaturalnessFeature } from './features/naturalness';
 import { calculateAggregatedScore } from './scoring';
 
 /**
- * Shared Tokenization & Context Preparation (Section 33)
+ * Shared Tokenization & Context Preparation
  */
 function prepareTextContext(rawText: string): PreparedTextContext {
   const trimmedText = rawText.trim();
@@ -79,7 +85,7 @@ function prepareTextContext(rawText: string): PreparedTextContext {
   };
 }
 
-export function analyzeAiPatterns(text: string): AiPatternResult {
+export function analyzeAiPatterns(text: string, targetKeyword?: string): AiPatternResult {
   if (!text || text.trim().length === 0) {
     return {
       status: 'empty',
@@ -115,7 +121,7 @@ export function analyzeAiPatterns(text: string): AiPatternResult {
   const lexical = extractLexicalFeature(ctx);
   const sentence = extractSentenceFeature(ctx);
   const paragraph = extractParagraphFeature(ctx);
-  const repetition = extractRepetitionFeature(ctx);
+  const repetition = extractRepetitionFeature(ctx, targetKeyword);
   const enumeration = extractEnumerationFeature(ctx);
   const concreteness = extractConcretenessFeature(ctx);
   const transition = extractTransitionFeature(ctx);
@@ -136,8 +142,21 @@ export function analyzeAiPatterns(text: string): AiPatternResult {
     naturalnessPenalty: naturalness.penaltyScore,
   };
 
+  const featureApplicable: AiFeatureApplicable = {
+    lexical: lexical.applicable,
+    sentence: sentence.applicable,
+    paragraph: paragraph.applicable,
+    repetition: repetition.applicable,
+    enumeration: enumeration.applicable,
+    concreteness: concreteness.applicable,
+    transition: transition.applicable,
+    punctuation: punctuation.applicable,
+    aiSpecificPhrase: aiPhrase.applicable,
+    naturalnessPenalty: naturalness.applicable,
+  };
+
   // Calculate aggregated score and tiers
-  const aggregated = calculateAggregatedScore(featureScores, ctx.wordCount);
+  const aggregated = calculateAggregatedScore(featureScores, featureApplicable, ctx.wordCount);
 
   const categories: AiPatternCategoryResult[] = [
     aiPhrase.categoryResult,
@@ -160,7 +179,9 @@ export function analyzeAiPatterns(text: string): AiPatternResult {
     label: aggregated.label,
     labelText: aggregated.labelText,
     confidence: aggregated.confidence,
+    confidenceDetail: aggregated.confidenceDetail,
     activeCategoriesCount: aggregated.activeCategoriesCount,
+    eligibleCategoriesCount: aggregated.eligibleCategoriesCount,
     categories,
     featureScores,
   };

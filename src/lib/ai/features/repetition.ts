@@ -1,5 +1,7 @@
 /**
- * Repetition & Structural Parallelism Feature Extractor
+ * Repetition & Structural Parallelism Feature Extractor (v2.1.0)
+ * Evaluates structural repetition, negative parallelism, and n-gram patterns,
+ * with protection for legitimate SEO keyword targeting.
  */
 import { PreparedTextContext, AiPatternCategoryResult, AiPatternMatch } from '../types';
 
@@ -23,22 +25,30 @@ const NEGATIVE_PARALLELISM_PATTERNS = [
   },
 ];
 
-export function extractRepetitionFeature(ctx: PreparedTextContext): {
+export function extractRepetitionFeature(
+  ctx: PreparedTextContext,
+  targetKeyword?: string
+): {
   categoryResult: AiPatternCategoryResult;
   score: number;
+  applicable: boolean;
 } {
   const { tokens, rawText, wordCount } = ctx;
-  if (wordCount < 10 || tokens.length < 10) {
+  const applicable = wordCount >= 20 && tokens.length >= 20;
+
+  if (!applicable) {
     return {
       categoryResult: {
         id: 'repetition',
         name: 'Pengulangan Frasa & Struktur Paralel',
-        detail: 'Teks terlalu pendek untuk analisis pengulangan',
+        detail: 'Teks belum mencukupi untuk analisis pengulangan',
         contribution: 'Rendah',
         matches: [],
         rawScore: 0,
+        applicable,
       },
       score: 0,
+      applicable,
     };
   }
 
@@ -66,20 +76,45 @@ export function extractRepetitionFeature(ctx: PreparedTextContext): {
     trigramCounts.set(tri, (trigramCounts.get(tri) || 0) + 1);
   }
 
+  const normalizedKeyword = targetKeyword ? targetKeyword.toLowerCase().trim() : '';
+
   let repeatedTrigramsTotal = 0;
+  const repeatingTrigramsList: { phrase: string; count: number }[] = [];
+
   for (const [tri, count] of trigramCounts.entries()) {
     if (count >= 3) {
+      // If matches target keyword explicitly, skip or dampen
+      if (normalizedKeyword && (tri.includes(normalizedKeyword) || normalizedKeyword.includes(tri))) {
+        continue;
+      }
       matches.push({ phrase: tri, count });
+      repeatingTrigramsList.push({ phrase: tri, count });
       repeatedTrigramsTotal += count;
     }
   }
 
-  const repeatedTriDensity = repeatedTrigramsTotal * factor;
-  const nGramScore = Math.min(repeatedTriDensity / 8, 1);
+  // Check if repetition is dominated by a SINGLE focal phrase (classic SEO keyword repetition)
+  // vs multiple distinct repeating phrases (LLM structural echo)
+  let nGramScore = 0;
+  if (repeatingTrigramsList.length > 0) {
+    const totalCount = repeatingTrigramsList.reduce((acc, curr) => acc + curr.count, 0);
+    const maxCount = Math.max(...repeatingTrigramsList.map((r) => r.count));
+    const isSingleFocalPhrase = repeatingTrigramsList.length <= 2 && maxCount / totalCount > 0.65;
+
+    const repeatedTriDensity = repeatedTrigramsTotal * factor;
+
+    if (isSingleFocalPhrase) {
+      // Legitimate single-topic/keyword repetition: dampen heavily
+      nGramScore = Math.min(Math.max((repeatedTriDensity - 15) / 25, 0), 0.35);
+    } else {
+      // Multiple distinct repeating template trigrams
+      nGramScore = Math.min(repeatedTriDensity / 8, 1);
+    }
+  }
 
   matches.sort((a, b) => b.count - a.count);
 
-  const rawScore = Math.min(parallelismScore * 0.6 + nGramScore * 0.4, 1);
+  const rawScore = Math.min(parallelismScore * 0.65 + nGramScore * 0.35, 1);
   const contribution = rawScore > 0.6 ? 'Tinggi' : rawScore > 0.25 ? 'Sedang' : 'Rendah';
 
   const detail =
@@ -95,7 +130,9 @@ export function extractRepetitionFeature(ctx: PreparedTextContext): {
       contribution,
       matches: matches.slice(0, 4),
       rawScore,
+      applicable,
     },
     score: rawScore,
+    applicable,
   };
 }

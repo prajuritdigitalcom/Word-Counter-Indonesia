@@ -1,5 +1,5 @@
 /**
- * Paragraph Transition Distribution & Entropy Feature Extractor
+ * Paragraph Transition Distribution & Entropy Feature Extractor (v2.1.0)
  */
 import { PARAGRAPH_START_TRANSITIONS } from '../../../data/aiPatterns';
 import { PreparedTextContext, AiPatternCategoryResult, AiPatternMatch } from '../types';
@@ -13,21 +13,25 @@ const TRANSITION_REGEXES = PARAGRAPH_START_TRANSITIONS.map((transition) => ({
 export function extractTransitionFeature(ctx: PreparedTextContext): {
   categoryResult: AiPatternCategoryResult;
   score: number;
+  applicable: boolean;
 } {
   const { paragraphs, wordCount } = ctx;
   const totalParagraphs = paragraphs.length;
+  const applicable = totalParagraphs >= 2 && wordCount >= 50;
 
-  if (totalParagraphs < 2 || wordCount === 0) {
+  if (!applicable || wordCount === 0) {
     return {
       categoryResult: {
         id: 'transition',
         name: 'Transisi Awal Paragraf',
-        detail: 'Jumlah paragraf belum mencukupi untuk analisis transisi',
+        detail: 'Jumlah paragraf belum mencukupi untuk analisis transisi (butuh minimal 2 paragraf)',
         contribution: 'Rendah',
         matches: [],
         rawScore: 0,
+        applicable,
       },
       score: 0,
+      applicable,
     };
   }
 
@@ -54,7 +58,7 @@ export function extractTransitionFeature(ctx: PreparedTextContext): {
   const maxSingleTransition = matches.length > 0 ? matches[0].count : 0;
   const repetitionRatio = maxSingleTransition / totalParagraphs;
 
-  // If > 40% of paragraphs start with a transition or single transition is repeated 3+ times
+  // If > 25% of paragraphs start with a transition or single transition is repeated 3+ times
   let rawScore = 0;
   if (transitionRatio > 0.25 || repetitionRatio > 0.3) {
     rawScore = Math.min(
@@ -80,7 +84,9 @@ export function extractTransitionFeature(ctx: PreparedTextContext): {
       contribution,
       matches,
       rawScore,
+      applicable,
     },
     score: rawScore,
+    applicable,
   };
 }

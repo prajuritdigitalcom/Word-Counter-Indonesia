@@ -1,5 +1,5 @@
 /**
- * Paragraph-Level Stylometric Feature Extractor
+ * Paragraph-Level Stylometric Feature Extractor (v2.1.0)
  * Detects rigid formulaic paragraph structures and unnaturally uniform paragraph lengths.
  */
 import { PreparedTextContext, AiPatternCategoryResult } from '../types';
@@ -7,21 +7,25 @@ import { PreparedTextContext, AiPatternCategoryResult } from '../types';
 export function extractParagraphFeature(ctx: PreparedTextContext): {
   categoryResult: AiPatternCategoryResult;
   score: number;
+  applicable: boolean;
 } {
   const { paragraphs, paragraphTokens, wordCount } = ctx;
   const paragraphCount = paragraphs.length;
+  const applicable = paragraphCount >= 3 && wordCount >= 50;
 
-  if (paragraphCount < 3 || wordCount === 0) {
+  if (!applicable || wordCount === 0) {
     return {
       categoryResult: {
         id: 'paragraph',
         name: 'Struktur & Variasi Paragraf',
-        detail: 'Jumlah paragraf belum mencukupi untuk analisis keseragaman',
+        detail: 'Jumlah paragraf belum mencukupi untuk analisis keseragaman (butuh minimal 3 paragraf)',
         contribution: 'Rendah',
         matches: [],
         rawScore: 0,
+        applicable,
       },
       score: 0,
+      applicable,
     };
   }
 
@@ -30,7 +34,7 @@ export function extractParagraphFeature(ctx: PreparedTextContext): {
   const variance = lengths.reduce((acc, val) => acc + Math.pow(val - avgWordsPerPara, 2), 0) / lengths.length;
   const stdDev = Math.sqrt(variance);
 
-  // Overly uniform paragraph lengths (e.g., standard deviation < 12 words with avg 40-75 words)
+  // Overly uniform paragraph lengths (e.g., standard deviation < 10 words with avg 35-85 words)
   const isTooUniform = stdDev < 10 && avgWordsPerPara >= 35 && avgWordsPerPara <= 85;
   const uniformityScore = isTooUniform ? Math.min((10 - stdDev) / 8, 1) : 0;
 
@@ -49,7 +53,9 @@ export function extractParagraphFeature(ctx: PreparedTextContext): {
       contribution,
       matches: [],
       rawScore,
+      applicable,
     },
     score: rawScore,
+    applicable,
   };
 }

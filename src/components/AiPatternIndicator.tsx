@@ -1,14 +1,14 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { ChevronDown, ChevronUp, Info } from 'lucide-react';
+import { ChevronDown, ChevronUp, Info, HelpCircle } from 'lucide-react';
 import { analyzeAiPatterns, AiPatternResult } from '../lib/aiPatternAnalyzer';
 import { AI_DISCLAIMER_TEXT, MIN_WORDS_FOR_SCORING } from '../data/aiPatterns';
 
 interface AiPatternIndicatorProps {
   text: string;
-  onShowToast?: (message: string, type?: 'success' | 'error' | 'info') => void;
+  targetKeyword?: string;
 }
 
-export const AiPatternIndicator: React.FC<AiPatternIndicatorProps> = ({ text }) => {
+export const AiPatternIndicator: React.FC<AiPatternIndicatorProps> = ({ text, targetKeyword }) => {
   const [debouncedText, setDebouncedText] = useState<string>(text);
   const [isOpen, setIsOpen] = useState<boolean>(true);
 
@@ -24,16 +24,17 @@ export const AiPatternIndicator: React.FC<AiPatternIndicatorProps> = ({ text }) 
   }, [text]);
 
   const analysis: AiPatternResult = useMemo(() => {
-    return analyzeAiPatterns(debouncedText);
-  }, [debouncedText]);
+    return analyzeAiPatterns(debouncedText, targetKeyword);
+  }, [debouncedText, targetKeyword]);
 
   return (
     <div className="w-full bg-white border border-slate-200 rounded-xl overflow-hidden shadow-xs">
       {/* Header with Title and Collapse Chevron */}
       <div className="px-4 sm:px-5 py-3 border-b border-slate-100 bg-white">
         <div className="flex items-center justify-between gap-2">
-          <div className="text-sm font-bold text-slate-800">
+          <div className="text-sm font-bold text-slate-800 flex items-center gap-1.5">
             <span>Indikator Pola Tulisan AI</span>
+            <span className="text-[10px] font-mono text-slate-400 font-normal">v{analysis.engineVersion}</span>
           </div>
 
           <div className="flex items-center gap-1">
@@ -64,9 +65,14 @@ export const AiPatternIndicator: React.FC<AiPatternIndicatorProps> = ({ text }) 
           <div className="py-3 px-3.5 rounded-lg bg-slate-50 border border-slate-200/80 text-slate-600 text-xs leading-relaxed">
             <div className="flex items-start gap-2">
               <Info className="w-4 h-4 text-slate-400 shrink-0 mt-0.5" />
-              <p>
-                Teks terlalu pendek untuk dianalisis secara wajar ({analysis.wordCount} / {MIN_WORDS_FOR_SCORING} kata). Tambahkan lebih banyak teks untuk hasil yang lebih bermakna.
-              </p>
+              <div className="space-y-1">
+                <p className="font-semibold text-slate-700">
+                  Teks belum mencapai batas minimum ({analysis.wordCount} / {MIN_WORDS_FOR_SCORING} kata)
+                </p>
+                <p className="text-[11px] text-slate-500">
+                  Fitur ini dioptimalkan untuk artikel atau tulisan panjang (≥150 kata) guna membaca variasi struktur kalimat, ritme, dan kekonkretan teks.
+                </p>
+              </div>
             </div>
           </div>
         )}
@@ -104,12 +110,17 @@ export const AiPatternIndicator: React.FC<AiPatternIndicatorProps> = ({ text }) 
             {/* Collapsible Category Breakdown Details */}
             {isOpen && (
               <div className="space-y-3 pt-1 border-t border-slate-100">
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between flex-wrap gap-1">
                   <h3 className="text-xs font-bold text-slate-700">Rincian Sinyal & Kontribusi</h3>
                   {analysis.confidence && (
-                    <span className="text-[10px] text-slate-400 capitalize">
-                      Keyakinan: {analysis.confidence}
-                    </span>
+                    <div
+                      className="inline-flex items-center gap-1 text-[10px] text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded cursor-help"
+                      title={analysis.confidenceDetail || `Tingkat keyakinan sampel statistik: ${analysis.confidence}`}
+                    >
+                      <span>Keyakinan:</span>
+                      <span className="font-semibold capitalize text-slate-700">{analysis.confidence}</span>
+                      <HelpCircle className="w-3 h-3 text-slate-400" />
+                    </div>
                   )}
                 </div>
 

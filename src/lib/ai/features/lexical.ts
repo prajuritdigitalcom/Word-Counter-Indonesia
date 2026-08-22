@@ -1,5 +1,5 @@
 /**
- * Lexical Stylometric Feature Extractor
+ * Lexical Stylometric Feature Extractor (v2.1.0)
  */
 import { GENERIC_VOCABULARY, INDONESIAN_FUNCTION_WORDS } from '../../../data/aiPatterns';
 import { PreparedTextContext, AiPatternCategoryResult, AiPatternMatch } from '../types';
@@ -31,9 +31,12 @@ function calculateMSTTR(tokens: string[], segmentSize = 100): number {
 export function extractLexicalFeature(ctx: PreparedTextContext): {
   categoryResult: AiPatternCategoryResult;
   score: number;
+  applicable: boolean;
 } {
   const { tokens, wordCount } = ctx;
-  if (wordCount === 0 || tokens.length === 0) {
+  const applicable = wordCount >= 20 && tokens.length >= 20;
+
+  if (!applicable || wordCount === 0 || tokens.length === 0) {
     return {
       categoryResult: {
         id: 'lexical',
@@ -42,8 +45,10 @@ export function extractLexicalFeature(ctx: PreparedTextContext): {
         contribution: 'Rendah',
         matches: [],
         rawScore: 0,
+        applicable,
       },
       score: 0,
+      applicable,
     };
   }
 
@@ -63,12 +68,10 @@ export function extractLexicalFeature(ctx: PreparedTextContext): {
   genericMatches.sort((a, b) => b.count - a.count);
 
   const genericDensity = genericTotal * factor; // per 1000 words
-  // AI text often has generic density > 15-25 per 1k words
   const genericScore = Math.min(Math.max((genericDensity - 8) / 20, 0), 1);
 
   // 2. MSTTR (Type-Token Ratio across 100-word chunks)
   const msttr = calculateMSTTR(tokens);
-  // Extremely uniform vocabulary (< 0.55 MSTTR) adds a slight AI signal; rich vocab (> 0.72) is natural
   const msttrScore = msttr < 0.58 ? Math.min((0.58 - msttr) / 0.18, 1) : 0;
 
   // 3. Function words ratio
@@ -79,7 +82,6 @@ export function extractLexicalFeature(ctx: PreparedTextContext): {
     }
   }
   const functionRatio = functionWordCount / tokens.length;
-  // Standard Indonesian function word ratio is 0.35-0.50. Very high (>0.56) indicates boilerplate padding.
   const functionScore = functionRatio > 0.54 ? Math.min((functionRatio - 0.54) / 0.15, 1) : 0;
 
   // Aggregate lexical raw score (0..1)
@@ -99,7 +101,9 @@ export function extractLexicalFeature(ctx: PreparedTextContext): {
       contribution,
       matches: genericMatches.slice(0, 5),
       rawScore,
+      applicable,
     },
     score: rawScore,
+    applicable,
   };
 }
