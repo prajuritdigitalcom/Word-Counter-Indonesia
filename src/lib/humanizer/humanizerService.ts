@@ -6,7 +6,7 @@
 import { GoogleGenAI } from '@google/genai';
 import { analyzeAiPatterns } from '../ai/analyzer';
 import { DEFAULT_GEMINI_MODEL, FALLBACK_GEMINI_MODELS, MIN_HUMANIZER_WORD_COUNT } from './config';
-import { isModelUnavailableError, buildGeminiErrorMessage } from './keyVerification';
+import { isModelUnavailableError, isTransientServerError, buildGeminiErrorMessage } from './keyVerification';
 import { buildHumanizerPrompt } from './promptBuilder';
 import { validateHumanizerOutput } from './qualityGate';
 import {
@@ -106,9 +106,10 @@ export async function executeHumanizer(
 
   let rawOutput = '';
   let lastError: unknown = null;
-  let successModel = DEFAULT_GEMINI_MODEL;
+  let lastAttemptedModel = DEFAULT_GEMINI_MODEL;
 
   for (const candidate of candidates) {
+    lastAttemptedModel = candidate;
     try {
       const response = await ai.models.generateContent({
         model: candidate,
@@ -120,13 +121,15 @@ export async function executeHumanizer(
 
       rawOutput = response.text || '';
       if (rawOutput) {
-        successModel = candidate;
+        lastAttemptedModel = candidate;
         break;
       }
     } catch (err: unknown) {
       lastError = err;
-      if (isModelUnavailableError(err)) {
-        // Coba model fallback berikutnya
+      console.error(`[Humanizer] Gemini API error pada model "${candidate}":`, err);
+
+      if (isModelUnavailableError(err) || isTransientServerError(err)) {
+        // Lanjut ke model fallback berikutnya
         continue;
       }
       // Error lain (401, 429, network, etc.) langsung tangani
@@ -137,7 +140,7 @@ export async function executeHumanizer(
 
   if (!rawOutput) {
     const finalMsg = lastError
-      ? buildGeminiErrorMessage(lastError, successModel)
+      ? buildGeminiErrorMessage(lastError, lastAttemptedModel)
       : 'Gagal memproses dengan Gemini. Silakan coba beberapa saat lagi.';
     throw new Error(finalMsg);
   }

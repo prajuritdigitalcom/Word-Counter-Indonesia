@@ -119,6 +119,7 @@ export function useHumanizer() {
         setCurrentStepMessage('');
         return true;
       } catch (err: unknown) {
+        console.error('[Humanizer] Error saat menjalankan humanisasi (Pass 1):', err);
         setIsProcessing(false);
         setCurrentStepMessage('');
         const msg = err instanceof Error ? err.message : String(err);
@@ -167,6 +168,7 @@ export function useHumanizer() {
         setCurrentStepMessage('');
         return true;
       } catch (err: unknown) {
+        console.error('[Humanizer] Error saat menjalankan humanisasi (Pass 2):', err);
         setIsProcessing(false);
         setCurrentStepMessage('');
         const msg = err instanceof Error ? err.message : String(err);

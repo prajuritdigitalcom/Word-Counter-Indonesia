@@ -13,9 +13,50 @@ export interface KeyVerificationResult {
 }
 
 /**
+ * Mengambil HTTP status code dari error SDK secara andal (ApiError.status),
+ * dengan fallback ke pencarian pola teks untuk error non-ApiError.
+ */
+export function extractStatusCode(err: unknown): number | undefined {
+  if (err && typeof err === 'object') {
+    const anyErr = err as { status?: unknown; code?: unknown };
+    if (typeof anyErr.status === 'number') return anyErr.status;
+    if (typeof anyErr.code === 'number') return anyErr.code;
+  }
+  const s = String(err);
+  const match = s.match(/"code"\s*:\s*(\d{3})/i) || s.match(/"status"\s*:\s*(\d{3})/i) || s.match(/\b([45]\d{2})\b/);
+  if (match && match[1]) {
+    const parsed = parseInt(match[1], 10);
+    if (!isNaN(parsed) && parsed >= 400 && parsed < 600) return parsed;
+  }
+  return undefined;
+}
+
+/**
+ * Error transient di sisi server Google (bukan salah model/key), umumnya
+ * pulih sendiri: 500 INTERNAL, 503 UNAVAILABLE (model overload), 504 timeout.
+ */
+export function isTransientServerError(err: unknown): boolean {
+  const status = extractStatusCode(err);
+  if (status === 500 || status === 502 || status === 503 || status === 504) return true;
+
+  const s = String(err).toLowerCase();
+  return (
+    s.includes('"status":"internal"') ||
+    s.includes('"status":"unavailable"') ||
+    s.includes('internal error encountered') ||
+    s.includes('overloaded') ||
+    s.includes('deadline_exceeded') ||
+    s.includes('server error')
+  );
+}
+
+/**
  * Helper to determine if an error indicates model unavailability (404, not found, discontinued for new users, unsupported parameter/argument)
  */
 export function isModelUnavailableError(err: unknown): boolean {
+  // If it's a transient server error (500/503), do not classify as permanent model unavailable
+  if (isTransientServerError(err)) return false;
+
   const s = String(err).toLowerCase();
   return (
     s.includes('404') ||
@@ -34,7 +75,13 @@ export function isModelUnavailableError(err: unknown): boolean {
  * User-friendly Indonesian error message builder for Gemini API errors
  */
 export function buildGeminiErrorMessage(err: unknown, modelName: string): string {
+  const status = extractStatusCode(err);
   const s = String(err).toLowerCase();
+
+  // 1. Error transient di sisi server Google secara eksplisit
+  if (isTransientServerError(err)) {
+    return `Server Gemini (model ${modelName}) sedang mengalami gangguan sementara atau kelebihan permintaan dari pihak Google. Biasanya pulih sendiri dalam beberapa menit — silakan coba lagi.${status ? ` (Kode: ${status})` : ''}`;
+  }
 
   if (s.includes('no longer available')) {
     return `Model AI (${modelName}) sedang tidak tersedia dari pihak Google saat ini. Tim kami sudah diberi tahu. Silakan coba lagi beberapa saat lagi.`;
@@ -74,7 +121,9 @@ export function buildGeminiErrorMessage(err: unknown, modelName: string): string
     return `Model ${modelName} tidak dapat diakses dengan API Key ini.`;
   }
 
-  return 'Gagal memproses permintaan ke Gemini API karena sebab yang tidak dikenali (kemungkinan bukan masalah API Key). Coba lagi beberapa saat lagi; jika terus berlanjut, laporkan ke tim kami.';
+  // Fallback generik terakhir dengan kode status teknis
+  const technicalDetail = status ? ` (Kode HTTP: ${status})` : '';
+  return `Gagal memproses permintaan ke Gemini API karena sebab yang tidak dikenali (kemungkinan bukan masalah API Key)${technicalDetail}. Coba lagi beberapa saat lagi; jika terus berlanjut, laporkan ke tim kami.`;
 }
 
 /**
@@ -129,7 +178,8 @@ export async function verifyGeminiApiKey(
       }
     } catch (err: unknown) {
       lastError = err;
-      if (isModelUnavailableError(err)) {
+      console.error(`[Humanizer] Verifikasi Gemini API error pada model "${candidate}":`, err);
+      if (isModelUnavailableError(err) || isTransientServerError(err)) {
         // Coba model berikutnya di daftar fallback
         continue;
       }

@@ -6,7 +6,12 @@ import { cleanRawOutput, validateHumanizerOutput } from './qualityGate';
 import { buildHumanizerPrompt, extractTargetedInstructions } from './promptBuilder';
 import { analyzeAiPatterns } from '../ai/analyzer';
 import { DEFAULT_GEMINI_MODEL, FALLBACK_GEMINI_MODELS } from './config';
-import { isModelUnavailableError, buildGeminiErrorMessage } from './keyVerification';
+import {
+  isModelUnavailableError,
+  isTransientServerError,
+  extractStatusCode,
+  buildGeminiErrorMessage,
+} from './keyVerification';
 
 function assert(condition: boolean, message: string) {
   if (!condition) {
@@ -81,6 +86,24 @@ assert(isModelUnavailableError(new Error('404 NOT_FOUND')) === true, 'isModelUna
 assert(isModelUnavailableError(new Error('INVALID_ARGUMENT: temperature is not supported')) === true, 'isModelUnavailableError detects invalid_argument & unsupported parameter');
 assert(isModelUnavailableError(new Error('API_KEY_INVALID: 401')) === false, 'isModelUnavailableError does not trigger for 401');
 
+// 7. Transient Server Error Detection & Status Code Extraction
+const err503 = new Error('ApiError: {"error":{"code":503,"message":"The model is overloaded. Please try again later.","status":"UNAVAILABLE"}}');
+assert(isTransientServerError(err503) === true, 'isTransientServerError detects 503 UNAVAILABLE/overload');
+assert(isModelUnavailableError(err503) === false, 'error 503 is not classified as permanent model unavailable');
+assert(extractStatusCode(err503) === 503, 'extractStatusCode parses 503 from error body');
+
+const err500 = new Error('ApiError: {"error":{"code":500,"message":"Internal error encountered.","status":"INTERNAL"}}');
+assert(isTransientServerError(err500) === true, 'isTransientServerError detects 500 INTERNAL');
+assert(extractStatusCode(err500) === 500, 'extractStatusCode parses 500 from error body');
+
+const errObj = { status: 503, message: 'Service Unavailable' };
+assert(isTransientServerError(errObj) === true, 'isTransientServerError detects object with status 503');
+assert(extractStatusCode(errObj) === 503, 'extractStatusCode extracts number from object property');
+
+const msgTransient = buildGeminiErrorMessage(err503, 'gemini-3.7-flash');
+assert(msgTransient.includes('gangguan sementara') || msgTransient.includes('kelebihan permintaan'), 'buildGeminiErrorMessage provides clear Indonesian explanation for transient server errors');
+assert(msgTransient.includes('Kode: 503'), 'buildGeminiErrorMessage includes status code for transient error');
+
 const msgNoLonger = buildGeminiErrorMessage(err404, 'gemini-2.5-flash');
 assert(msgNoLonger.includes('tidak tersedia dari pihak Google'), 'buildGeminiErrorMessage provides clear Indonesian explanation for unavailable models');
 
@@ -92,8 +115,9 @@ const errQuota = new Error('RESOURCE_EXHAUSTED: quota exceeded 429');
 const msgQuota = buildGeminiErrorMessage(errQuota, 'gemini-3.1-flash-lite');
 assert(msgQuota.includes('kuota atau rate limit'), 'buildGeminiErrorMessage provides clear quota message');
 
-const errUnknown = new Error('SOMETHING_UNEXPECTED');
+const errUnknown = new Error('SOMETHING_UNEXPECTED 418');
 const msgUnknown = buildGeminiErrorMessage(errUnknown, 'gemini-3.7-flash');
 assert(msgUnknown.includes('kemungkinan bukan masalah API Key'), 'buildGeminiErrorMessage provides neutral explanation for unknown errors');
+assert(msgUnknown.includes('Kode HTTP: 418'), 'buildGeminiErrorMessage includes technical HTTP status code on unknown errors');
 
 console.log('=== ALL HUMANIZER UNIT TESTS PASSED ===');
