@@ -78,6 +78,7 @@ assert(FALLBACK_GEMINI_MODELS[FALLBACK_GEMINI_MODELS.length - 1] === 'gemini-3.1
 const err404 = new Error('This model models/gemini-2.5-flash is no longer available to new users.');
 assert(isModelUnavailableError(err404) === true, 'isModelUnavailableError detects "no longer available"');
 assert(isModelUnavailableError(new Error('404 NOT_FOUND')) === true, 'isModelUnavailableError detects 404 NOT_FOUND');
+assert(isModelUnavailableError(new Error('INVALID_ARGUMENT: temperature is not supported')) === true, 'isModelUnavailableError detects invalid_argument & unsupported parameter');
 assert(isModelUnavailableError(new Error('API_KEY_INVALID: 401')) === false, 'isModelUnavailableError does not trigger for 401');
 
 const msgNoLonger = buildGeminiErrorMessage(err404, 'gemini-2.5-flash');
@@ -90,5 +91,9 @@ assert(msgAuth.includes('API Key tidak valid atau telah dicabut'), 'buildGeminiE
 const errQuota = new Error('RESOURCE_EXHAUSTED: quota exceeded 429');
 const msgQuota = buildGeminiErrorMessage(errQuota, 'gemini-3.1-flash-lite');
 assert(msgQuota.includes('kuota atau rate limit'), 'buildGeminiErrorMessage provides clear quota message');
+
+const errUnknown = new Error('SOMETHING_UNEXPECTED');
+const msgUnknown = buildGeminiErrorMessage(errUnknown, 'gemini-3.7-flash');
+assert(msgUnknown.includes('kemungkinan bukan masalah API Key'), 'buildGeminiErrorMessage provides neutral explanation for unknown errors');
 
 console.log('=== ALL HUMANIZER UNIT TESTS PASSED ===');

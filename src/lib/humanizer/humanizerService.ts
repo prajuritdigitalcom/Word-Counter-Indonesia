@@ -115,8 +115,6 @@ export async function executeHumanizer(
         contents: promptData.userPrompt,
         config: {
           systemInstruction: promptData.systemInstruction,
-          temperature: options.mode === 'strong' ? 0.75 : options.mode === 'natural' ? 0.45 : 0.6,
-          topP: 0.95,
         },
       });
 

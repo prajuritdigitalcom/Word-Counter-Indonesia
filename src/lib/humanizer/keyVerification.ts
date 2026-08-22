@@ -13,7 +13,7 @@ export interface KeyVerificationResult {
 }
 
 /**
- * Helper to determine if an error indicates model unavailability (404, not found, discontinued for new users)
+ * Helper to determine if an error indicates model unavailability (404, not found, discontinued for new users, unsupported parameter/argument)
  */
 export function isModelUnavailableError(err: unknown): boolean {
   const s = String(err).toLowerCase();
@@ -23,7 +23,10 @@ export function isModelUnavailableError(err: unknown): boolean {
     s.includes('not found') ||
     s.includes('no longer available') ||
     s.includes('unsupported model') ||
-    s.includes('is not found for api version')
+    s.includes('is not found for api version') ||
+    s.includes('invalid_argument') ||
+    s.includes('is not supported') ||
+    s.includes('unknown name')
   );
 }
 
@@ -40,8 +43,7 @@ export function buildGeminiErrorMessage(err: unknown, modelName: string): string
     s.includes('api_key_invalid') ||
     s.includes('api key not valid') ||
     s.includes('401') ||
-    s.includes('unauthenticated') ||
-    s.includes('invalid_argument')
+    s.includes('unauthenticated')
   ) {
     return 'API Key tidak valid atau telah dicabut. Periksa kembali key Anda dari Google AI Studio.';
   }
@@ -72,7 +74,7 @@ export function buildGeminiErrorMessage(err: unknown, modelName: string): string
     return `Model ${modelName} tidak dapat diakses dengan API Key ini.`;
   }
 
-  return 'Gagal memverifikasi API Key. Pastikan key aktif dan valid di Google AI Studio.';
+  return 'Gagal memproses permintaan ke Gemini API karena sebab yang tidak dikenali (kemungkinan bukan masalah API Key). Coba lagi beberapa saat lagi; jika terus berlanjut, laporkan ke tim kami.';
 }
 
 /**
@@ -116,7 +118,6 @@ export async function verifyGeminiApiKey(
         contents: 'Halo',
         config: {
           maxOutputTokens: 5,
-          temperature: 0.1,
         },
       });
 
