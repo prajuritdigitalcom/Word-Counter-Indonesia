@@ -32,9 +32,8 @@ export const AiPatternIndicator: React.FC<AiPatternIndicatorProps> = ({ text, ta
       {/* Header with Title and Collapse Chevron */}
       <div className="px-4 sm:px-5 py-3 border-b border-slate-100 bg-white">
         <div className="flex items-center justify-between gap-2">
-          <div className="text-sm font-bold text-slate-800 flex items-center gap-1.5">
-            <span>Indikator Pola Tulisan AI</span>
-            <span className="text-[10px] font-mono text-slate-400 font-normal">v{analysis.engineVersion}</span>
+          <div className="text-sm font-bold text-slate-800">
+            Indikator Pola Tulisan AI
           </div>
 
           <div className="flex items-center gap-1">
