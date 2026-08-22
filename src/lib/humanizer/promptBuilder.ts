@@ -100,11 +100,15 @@ export function extractTargetedInstructions(
   // Mode-specific adjustment
   if (mode === 'strong') {
     instructions.push(
-      `Lakukan restrukturisasi kalimat secara menyeluruh dan berani merombak susunan klausa asalkan esensi informasi, akurasi fakta, dan nada dasar tulisan tetap terjaga utuh.`
+      `Lakukan restrukturisasi kalimat secara menyeluruh: gabungkan/pecah kalimat, ubah urutan klausa, dan variasikan pola pembuka kalimat sebanyak mungkin. WASPADAI agar hasil restrukturisasi tidak malah menjadi terlalu rapi/seragam secara struktural (mis. semua kalimat berpola sama, transisi antarparagraf terlalu simetris) — variasi struktural harus terasa organik, bukan mekanis. Esensi informasi, akurasi fakta, dan nada dasar tulisan tetap wajib terjaga utuh.`
     );
   } else if (mode === 'natural') {
     instructions.push(
-      `Lakukan perbaikan secara halus dan minimalis, utamakan membenahi bagian-bagian yang paling kaku saja tanpa mengubah gaya penulisan utama.`
+      `Lakukan perbaikan secara halus dan minimalis. Sentuh HANYA kalimat/frasa yang paling jelas kaku atau mekanis sesuai sinyal pola yang terdeteksi; kalimat lain yang sudah cukup natural TIDAK perlu diubah sama sekali.`
+    );
+  } else if (mode === 'balanced') {
+    instructions.push(
+      `Lakukan perbaikan dengan intensitas moderat: perbaiki secara menyeluruh bagian yang jelas kaku/mekanis sesuai sinyal pola yang terdeteksi, namun jangan merombak struktur kalimat yang sudah cukup natural hanya demi variasi. Prioritaskan hasil yang konsisten dan dapat diprediksi dibanding kreativitas/variasi berlebihan.`
     );
   }
 

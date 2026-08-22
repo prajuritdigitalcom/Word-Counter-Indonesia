@@ -116,6 +116,7 @@ export async function executeHumanizer(
         contents: promptData.userPrompt,
         config: {
           systemInstruction: promptData.systemInstruction,
+          seed: 42,
         },
       });
 

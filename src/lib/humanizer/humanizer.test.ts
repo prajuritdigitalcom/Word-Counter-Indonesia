@@ -71,6 +71,16 @@ assert(prompt.systemInstruction.includes('TARGET KEYWORD: Pastikan kata kunci ut
 assert(prompt.userPrompt.includes('DATA ANALISIS POLA TULISAN'), 'User prompt contains stylometric analysis payload');
 assert(prompt.userPrompt.includes('Skor Pola AI'), 'User prompt contains AI pattern score');
 
+// Test mode-specific instruction branches
+const strongInstr = extractTargetedInstructions(analysis, 'strong');
+assert(strongInstr.some((i) => i.includes('variasikan pola pembuka kalimat')), 'Strong mode includes deep restructuring instruction without rigid repetition');
+
+const naturalInstr = extractTargetedInstructions(analysis, 'natural');
+assert(naturalInstr.some((i) => i.includes('Sentuh HANYA kalimat/frasa yang paling jelas kaku')), 'Natural mode includes minimal touch instruction');
+
+const balancedInstr = extractTargetedInstructions(analysis, 'balanced');
+assert(balancedInstr.some((i) => i.includes('intensitas moderat')), 'Balanced mode includes explicit moderate intensity instruction');
+
 // 5. Gemini 3.x Models & Fallback Architecture
 assert(!DEFAULT_GEMINI_MODEL.startsWith('gemini-2.5'), 'DEFAULT_GEMINI_MODEL should not use deprecated/restricted 2.5 family');
 assert(DEFAULT_GEMINI_MODEL === 'gemini-3.7-flash', 'DEFAULT_GEMINI_MODEL is gemini-3.7-flash');
