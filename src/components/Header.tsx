@@ -42,10 +42,7 @@ export const Header: React.FC<HeaderProps> = ({
             </div>
             <div className="flex items-baseline gap-1.5 min-w-0">
               <span className="font-bold text-base sm:text-lg text-slate-900 tracking-tight group-hover:text-[#fe4c6f] transition-colors truncate">
-                Word Counter
-              </span>
-              <span className="text-xs text-slate-400 font-medium hidden sm:inline whitespace-nowrap">
-                by Prajurit Digital
+                Word Counter & Humanizer
               </span>
             </div>
           </a>
