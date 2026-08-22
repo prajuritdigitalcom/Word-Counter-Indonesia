@@ -68,9 +68,11 @@ assert(prompt.userPrompt.includes('Skor Pola AI'), 'User prompt contains AI patt
 
 // 5. Gemini 3.x Models & Fallback Architecture
 assert(!DEFAULT_GEMINI_MODEL.startsWith('gemini-2.5'), 'DEFAULT_GEMINI_MODEL should not use deprecated/restricted 2.5 family');
-assert(DEFAULT_GEMINI_MODEL === 'gemini-3.1-flash-lite', 'DEFAULT_GEMINI_MODEL is gemini-3.1-flash-lite');
+assert(DEFAULT_GEMINI_MODEL === 'gemini-3.7-flash', 'DEFAULT_GEMINI_MODEL is gemini-3.7-flash');
 assert(FALLBACK_GEMINI_MODELS.length >= 2, 'FALLBACK_GEMINI_MODELS contains multiple candidates');
 assert(FALLBACK_GEMINI_MODELS.includes('gemini-3.5-flash'), 'FALLBACK_GEMINI_MODELS includes gemini-3.5-flash');
+assert(FALLBACK_GEMINI_MODELS[0] === DEFAULT_GEMINI_MODEL, 'Fallback list dimulai dari model default/terbaru');
+assert(FALLBACK_GEMINI_MODELS[FALLBACK_GEMINI_MODELS.length - 1] === 'gemini-3.1-flash-lite', 'Fallback chain diakhiri model lama yang terbukti stabil');
 
 // 6. Error & Model Unavailability Parsing
 const err404 = new Error('This model models/gemini-2.5-flash is no longer available to new users.');
