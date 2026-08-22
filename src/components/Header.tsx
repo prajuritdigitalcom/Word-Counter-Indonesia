@@ -16,7 +16,7 @@ export const Header: React.FC = () => {
             <div className="w-8 h-8 rounded-lg overflow-hidden bg-slate-100 border border-slate-200 flex items-center justify-center shrink-0">
               {!logoFailed ? (
                 <img
-                  src="/prajurit-digital.jpg"
+                  src="https://i.ibb.co.com/wr0x733r/prajurit-digital.jpg"
                   alt="Prajurit Digital"
                   className="w-full h-full object-cover"
                   onError={() => setLogoFailed(true)}
